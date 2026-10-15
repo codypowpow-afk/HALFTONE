@@ -19,7 +19,7 @@ npm start
 npm run package:win
 ```
 
-Output: `dist/Halftone Press-win32-x64/` (zip it to share). The build is not code-signed, so Windows SmartScreen will warn on first launch.
+Output: `dist/Halftone Press-win32-x64/`. Copy `build/READ ME FIRST.txt` into it, then zip it to share. The build is not code-signed, so Windows SmartScreen will warn on first launch.
 
 ## Licenses
 

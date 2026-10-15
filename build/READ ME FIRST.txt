@@ -1,0 +1,20 @@
+Halftone Press 1.0.0 for Windows (64-bit)
+=========================================
+
+To run:
+  1. Unzip this whole folder somewhere, e.g. Documents\Halftone Press.
+     (Don't run it from inside the zip. It needs the files next to it.)
+  2. Double-click "Halftone Press.exe".
+
+The first time, Windows may show "Windows protected your PC" because the
+app isn't code-signed. Click "More info", then "Run anyway".
+
+Using it:
+  - Click "Choose images" or drag JPEG files onto the window.
+  - Adjust the settings on the left; the preview updates as you go.
+  - "Save this image" asks where to save the current image.
+  - "Save all" asks for a folder once and saves every image in the queue.
+    Existing files are never overwritten; a number is added instead.
+
+The app works fully offline and never connects to the internet.
+To remove it, delete the folder.
