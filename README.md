@@ -27,4 +27,4 @@ The bundled fonts (Bricolage Grotesque, IBM Plex Sans, IBM Plex Mono) are under 
 
 ## Releases
 
-GitHub Actions (`.github/workflows/release.yml`) builds the Windows app on every push to `main`, starts it once as a smoke test, and uploads the zip as a workflow artifact. Pushing a tag like `v1.0.1` also publishes a GitHub release with the zip attached. Bump `version` in `package.json` to match.
+GitHub Actions (`.github/workflows/release.yml`) builds the Windows app on every push to `main`, starts it once as a smoke test, and uploads the zip as a workflow artifact. When you publish a release on GitHub (Releases → Draft a new release), the workflow builds again and attaches the zip to it. `.github/release-notes.md` has text you can paste into the release description.
