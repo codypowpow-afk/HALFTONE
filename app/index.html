@@ -1,0 +1,629 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; font-src 'self'">
+<title>Halftone Press</title>
+<link rel="stylesheet" href="fonts.css">
+<style>
+/* Layout: press-room workbench — a control rail of plate settings beside a proof stage, with a job queue underneath */
+:root {
+  --paper: #eef0f3;
+  --sheet: #ffffff;
+  --ink: #17161c;
+  --ink-soft: #5b5d6b;
+  --rule: #d4d7de;
+  --magenta: #c4006a;
+  --magenta-soft: #f6dcea;
+  --stage: #2a2b31;
+  --cyan-ink: #00a3e0;
+  --yellow-ink: #f5d800;
+  --ok: #1d7a4c;
+  --font-display: "Bricolage Grotesque", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #16171b; --sheet: #1f2026; --ink: #ecebf1; --ink-soft: #a3a5b2; --rule: #34363f;
+    --magenta: #ff5aa8; --magenta-soft: #3d1d2e; --stage: #0d0e11; --ok: #4fc98a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #16171b; --sheet: #1f2026; --ink: #ecebf1; --ink-soft: #a3a5b2; --rule: #34363f;
+  --magenta: #ff5aa8; --magenta-soft: #3d1d2e; --stage: #0d0e11; --ok: #4fc98a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+}
+.wrap { max-width: 1280px; margin: 0 auto; display: grid; gap: 20px; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; justify-content: space-between; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand svg { flex: none; }
+h1 { font-family: var(--font-display); font-weight: 800; font-size: 1.9rem; letter-spacing: -0.02em; margin: 0; line-height: 1; text-wrap: balance; }
+.tag { margin: 2px 0 0; color: var(--ink-soft); font-size: 0.9rem; }
+.colorbar { display: flex; height: 10px; width: 160px; border: 1px solid var(--rule); }
+.colorbar span { flex: 1; }
+
+.bench { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 880px) { .bench { grid-template-columns: minmax(0, 1fr); } }
+
+.rail { background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 18px; display: grid; gap: 18px; }
+.group { display: grid; gap: 10px; }
+.group + .group { border-top: 1px solid var(--rule); padding-top: 16px; }
+.label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.09em; font-weight: 600; color: var(--ink-soft); margin: 0; }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 1px solid var(--rule); border-radius: 5px; overflow: hidden; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label { text-align: center; padding: 7px 4px; cursor: pointer; font-weight: 500; font-size: 0.86rem; }
+.seg label + input + label, .seg input + label ~ label { border-left: 1px solid var(--rule); }
+.seg input:checked + label { background: var(--ink); color: var(--sheet); }
+.seg input:focus-visible + label { outline: 2px solid var(--magenta); outline-offset: -2px; }
+.shapes { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.shapes input { position: absolute; opacity: 0; pointer-events: none; }
+.shapes label { display: grid; place-items: center; aspect-ratio: 1; max-width: 100%; border: 1px solid var(--rule); border-radius: 5px; cursor: pointer; color: var(--ink); }
+.shapes input:checked + label { border-color: var(--magenta); background: var(--magenta-soft); color: var(--magenta); }
+.shapes input:focus-visible + label { outline: 2px solid var(--magenta); outline-offset: 1px; }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 8px; }
+.row output, .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 0.85rem; }
+.hint { color: var(--ink-soft); font-size: 0.8rem; margin: 0; }
+input[type="range"] { width: 100%; accent-color: var(--magenta); }
+.angles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.angles label { display: grid; gap: 4px; font-size: 0.78rem; font-weight: 600; }
+.angles .chip { display: inline-flex; align-items: center; gap: 5px; }
+.angles .chip i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; border: 1px solid var(--rule); }
+.angles input { width: 100%; font-family: var(--font-mono); font-size: 0.85rem; padding: 5px 6px; border: 1px solid var(--rule); border-radius: 4px; background: var(--paper); color: var(--ink); }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.colors { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.colors label { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; }
+.colors input { width: 34px; height: 26px; border: 1px solid var(--rule); border-radius: 4px; padding: 0; background: none; }
+select { width: 100%; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 4px; background: var(--paper); color: var(--ink); font: inherit; }
+
+button { font: inherit; cursor: pointer; border-radius: 5px; }
+.btn { border: 1px solid var(--rule); background: var(--sheet); color: var(--ink); padding: 6px 12px; font-weight: 500; font-size: 0.86rem; }
+.btn:hover { border-color: var(--ink-soft); }
+.btn.primary { background: var(--magenta); border-color: var(--magenta); color: #fff; font-weight: 600; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn.small { padding: 3px 9px; font-size: 0.78rem; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--magenta); outline-offset: 2px; }
+
+.proof { display: grid; gap: 10px; min-width: 0; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.toolbar .left, .toolbar .right { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.status { font-family: var(--font-mono); font-size: 0.8rem; color: var(--ink-soft); }
+.stage { position: relative; background: var(--stage); border-radius: 6px; min-height: 340px; display: grid; place-items: center; overflow: auto; padding: 16px; }
+.stage.actual { place-items: start; }
+.stage canvas { display: block; max-width: 100%; height: auto; box-shadow: 0 2px 14px rgba(0,0,0,.35); }
+.stage.actual canvas { max-width: none; }
+.stage.drag { outline: 3px dashed var(--magenta); outline-offset: -8px; }
+.badge { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,.6); color: #fff; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 8px; border-radius: 3px; }
+
+.drop { border: 1.5px dashed var(--rule); border-radius: 6px; padding: 14px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; background: var(--sheet); }
+.drop p { margin: 0; }
+.drop strong { font-weight: 600; }
+
+.queue { background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+.queue-head { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--rule); }
+.queue-head h2 { font-family: var(--font-display); font-size: 1.05rem; margin: 0; font-weight: 600; }
+.queue ul { list-style: none; margin: 0; padding: 0; }
+.queue li { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--rule); cursor: pointer; }
+.queue li:last-child { border-bottom: 0; }
+.queue li[aria-current="true"] { background: var(--magenta-soft); }
+.queue img { width: 44px; height: 44px; object-fit: cover; border-radius: 3px; display: block; }
+.queue .name { min-width: 0; }
+.queue .name b { display: block; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.queue .name span { font-family: var(--font-mono); font-size: 0.75rem; color: var(--ink-soft); }
+.queue .acts { display: flex; gap: 6px; align-items: center; }
+.pill { font-size: 0.7rem; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--rule); color: var(--ink-soft); white-space: nowrap; }
+.pill.done { color: var(--ok); border-color: currentColor; }
+.pill.example { color: var(--magenta); border-color: currentColor; }
+
+.toast { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--sheet); padding: 9px 14px; border-radius: 5px; font-size: 0.86rem; max-width: calc(100vw - 32px); }
+@media (prefers-reduced-motion: no-preference) { .toast { transition: opacity .2s; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true">
+        <circle cx="20" cy="20" r="11" fill="none" stroke="var(--ink)" stroke-width="2"/>
+        <path d="M20 2v36M2 20h36" stroke="var(--ink)" stroke-width="2"/>
+        <circle cx="20" cy="20" r="4" fill="var(--magenta)"/>
+      </svg>
+      <div>
+        <h1>Halftone Press</h1>
+        <p class="tag">Turn JPEGs into printed-dot halftones, one image or a batch.</p>
+      </div>
+    </div>
+    <div class="colorbar" aria-hidden="true">
+      <span style="background:var(--cyan-ink)"></span><span style="background:#e6007e"></span><span style="background:var(--yellow-ink)"></span><span style="background:#17161c"></span>
+    </div>
+  </header>
+
+  <div class="bench">
+    <form class="rail" id="controls" autocomplete="off">
+      <div class="group">
+        <p class="label">Screen</p>
+        <div class="seg" role="radiogroup" aria-label="Screen type">
+          <input type="radio" name="mode" id="mode-cmyk" value="cmyk" checked><label for="mode-cmyk">CMYK color</label>
+          <input type="radio" name="mode" id="mode-mono" value="mono"><label for="mode-mono">Single ink</label>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="row"><label class="label" for="cell">Dot cell</label><output id="cell-out" for="cell"></output></div>
+        <input type="range" id="cell" min="3" max="60" step="1" value="10">
+        <p class="hint" id="lpi-hint"></p>
+      </div>
+
+      <div class="group">
+        <p class="label">Dot shape</p>
+        <div class="shapes" id="shapes"></div>
+      </div>
+
+      <div class="group">
+        <div class="row"><label class="label" for="gain">Dot gain</label><output id="gain-out" for="gain"></output></div>
+        <input type="range" id="gain" min="50" max="160" step="1" value="100">
+        <div class="row"><label class="label" for="contrast">Contrast</label><output id="contrast-out" for="contrast"></output></div>
+        <input type="range" id="contrast" min="-50" max="80" step="1" value="0">
+      </div>
+
+      <div class="group" id="angles-group">
+        <p class="label">Screen angles</p>
+        <div class="angles">
+          <label for="ang-c"><span class="chip"><i style="background:var(--cyan-ink)"></i>C</span><input type="number" id="ang-c" min="0" max="360" value="15"></label>
+          <label for="ang-m"><span class="chip"><i style="background:#e6007e"></i>M</span><input type="number" id="ang-m" min="0" max="360" value="75"></label>
+          <label for="ang-y"><span class="chip"><i style="background:var(--yellow-ink)"></i>Y</span><input type="number" id="ang-y" min="0" max="360" value="0"></label>
+          <label for="ang-k"><span class="chip"><i style="background:#17161c"></i>K</span><input type="number" id="ang-k" min="0" max="360" value="45"></label>
+        </div>
+        <div class="presets">
+          <button type="button" class="btn small" data-preset="offset">Offset 15/75/0/45</button>
+          <button type="button" class="btn small" data-preset="photoshop">Photoshop 108/162/90/45</button>
+        </div>
+        <div class="row" id="gcr-row"><label class="label" for="gcr">Black generation</label><output id="gcr-out" for="gcr"></output></div>
+        <input type="range" id="gcr" min="0" max="100" step="1" value="80">
+      </div>
+
+      <div class="group" id="mono-group" hidden>
+        <div class="row"><label class="label" for="ang-mono">Screen angle</label><output id="ang-mono-out" for="ang-mono"></output></div>
+        <input type="range" id="ang-mono" min="0" max="90" step="1" value="45">
+        <div class="colors">
+          <label for="ink">Ink <input type="color" id="ink" value="#17161c"></label>
+          <label for="paper">Paper <input type="color" id="paper" value="#ffffff"></label>
+        </div>
+      </div>
+
+      <div class="group">
+        <label class="label" for="format">Save as</label>
+        <select id="format">
+          <option value="png">PNG (sharp dots)</option>
+          <option value="jpeg">JPEG (smaller file)</option>
+        </select>
+        <label class="label" for="maxside">Output size</label>
+        <select id="maxside">
+          <option value="0">Same as original</option>
+          <option value="4000">Long side 4000 px</option>
+          <option value="2400" selected>Long side 2400 px</option>
+          <option value="1200">Long side 1200 px</option>
+        </select>
+      </div>
+    </form>
+
+    <section class="proof" aria-label="Proof">
+      <div class="drop" id="drop">
+        <p><strong>Add JPEGs</strong> — drop files anywhere on the proof, or choose them.</p>
+        <label class="btn primary" for="file" style="display:inline-block">Choose images</label>
+        <input type="file" id="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
+      </div>
+
+      <div class="toolbar">
+        <div class="left">
+          <button type="button" class="btn" id="compare" aria-pressed="false">Show original</button>
+          <button type="button" class="btn" id="zoom" aria-pressed="false">Actual size</button>
+        </div>
+        <div class="right">
+          <span class="status" id="status" role="status"></span>
+          <button type="button" class="btn primary" id="save-one">Save this image</button>
+        </div>
+      </div>
+
+      <div class="stage" id="stage">
+        <span class="badge" id="badge">Halftone proof</span>
+        <canvas id="view" width="10" height="10" aria-label="Halftone preview"></canvas>
+      </div>
+
+
+      <div class="queue">
+        <div class="queue-head">
+          <h2>Job queue</h2>
+          <button type="button" class="btn" id="save-all">Save all</button>
+        </div>
+        <ul id="queue"></ul>
+      </div>
+    </section>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const SHAPES = {
+    round:   '<circle cx="12" cy="12" r="6" fill="currentColor"/>',
+    ellipse: '<ellipse cx="12" cy="12" rx="8" ry="5" fill="currentColor"/>',
+    square:  '<rect x="6" y="6" width="12" height="12" fill="currentColor"/>',
+    diamond: '<path d="M12 4l8 8-8 8-8-8z" fill="currentColor"/>',
+    line:    '<rect x="3" y="9" width="18" height="6" fill="currentColor"/>',
+    cross:   '<path d="M10 3h4v7h7v4h-7v7h-4v-7H3v-4h7z" fill="currentColor"/>'
+  };
+  const shapesEl = $("shapes");
+  Object.keys(SHAPES).forEach((k, i) => {
+    shapesEl.insertAdjacentHTML("beforeend",
+      `<input type="radio" name="shape" id="shape-${k}" value="${k}"${i === 0 ? " checked" : ""}>` +
+      `<label for="shape-${k}" title="${k[0].toUpperCase() + k.slice(1)}"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">${SHAPES[k]}</svg><span hidden>${k}</span></label>`);
+  });
+
+  const INKS = { c: "#00a3e0", m: "#e6007e", y: "#ffe600", k: "#17161c" };
+
+  function settings() {
+    return {
+      mode: document.querySelector('input[name="mode"]:checked').value,
+      shape: document.querySelector('input[name="shape"]:checked').value,
+      cell: +$("cell").value,
+      gain: +$("gain").value / 100,
+      contrast: +$("contrast").value / 100,
+      gcr: +$("gcr").value / 100,
+      angles: { c: +$("ang-c").value || 0, m: +$("ang-m").value || 0, y: +$("ang-y").value || 0, k: +$("ang-k").value || 0 },
+      monoAngle: +$("ang-mono").value,
+      ink: $("ink").value, paper: $("paper").value,
+      format: $("format").value, maxSide: +$("maxside").value
+    };
+  }
+
+  // ---------- Halftone renderer ----------
+  function outputSize(w, h, maxSide) {
+    if (!maxSide || Math.max(w, h) <= maxSide) return [w, h];
+    const s = maxSide / Math.max(w, h);
+    return [Math.round(w * s), Math.round(h * s)];
+  }
+
+  // Draw `src` into ctx (W x H) as a halftone. `scale` shrinks the dot cell for previews.
+  function renderHalftone(ctx, src, W, H, s, scale) {
+    const cell = Math.max(1.5, s.cell * scale);
+    // Downsample so each sample pixel covers ~half a cell: an area average per dot.
+    const sw = Math.max(2, Math.ceil(W / cell * 2)), sh = Math.max(2, Math.ceil(H / cell * 2));
+    const sc = document.createElement("canvas"); sc.width = sw; sc.height = sh;
+    const sx = sc.getContext("2d", { willReadFrequently: true });
+    sx.imageSmoothingEnabled = true; sx.imageSmoothingQuality = "high";
+    sx.drawImage(src, 0, 0, sw, sh);
+    const px = sx.getImageData(0, 0, sw, sh).data;
+    const n = sw * sh;
+    const k = 1 + s.contrast;
+    const adj = (v) => Math.min(1, Math.max(0, (v - 0.5) * k + 0.5));
+
+    const planes = [];
+    if (s.mode === "cmyk") {
+      const C = new Float32Array(n), M = new Float32Array(n), Y = new Float32Array(n), K = new Float32Array(n);
+      for (let i = 0; i < n; i++) {
+        const r = adj(px[i * 4] / 255), g = adj(px[i * 4 + 1] / 255), b = adj(px[i * 4 + 2] / 255);
+        const kk = (1 - Math.max(r, g, b)) * s.gcr;
+        const d = 1 - kk || 1;
+        C[i] = Math.max(0, (1 - r - kk) / d); M[i] = Math.max(0, (1 - g - kk) / d);
+        Y[i] = Math.max(0, (1 - b - kk) / d); K[i] = kk;
+      }
+      planes.push({ data: C, angle: s.angles.c, color: INKS.c }, { data: M, angle: s.angles.m, color: INKS.m },
+                  { data: Y, angle: s.angles.y, color: INKS.y }, { data: K, angle: s.angles.k, color: INKS.k });
+    } else {
+      const D = new Float32Array(n);
+      for (let i = 0; i < n; i++) {
+        const l = (0.2126 * px[i * 4] + 0.7152 * px[i * 4 + 1] + 0.0722 * px[i * 4 + 2]) / 255;
+        D[i] = 1 - adj(l);
+      }
+      planes.push({ data: D, angle: s.monoAngle, color: s.ink });
+    }
+
+    ctx.save();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = s.mode === "cmyk" ? "#ffffff" : s.paper;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = s.mode === "cmyk" ? "multiply" : "source-over";
+
+    const sample = (data, x, y) => {
+      let fx = x / W * sw - 0.5, fy = y / H * sh - 0.5;
+      fx = Math.min(sw - 1, Math.max(0, fx)); fy = Math.min(sh - 1, Math.max(0, fy));
+      const x0 = fx | 0, y0 = fy | 0, x1 = Math.min(sw - 1, x0 + 1), y1 = Math.min(sh - 1, y0 + 1);
+      const tx = fx - x0, ty = fy - y0;
+      const a = data[y0 * sw + x0], b = data[y0 * sw + x1], c = data[y1 * sw + x0], d = data[y1 * sw + x1];
+      return (a + (b - a) * tx) * (1 - ty) + (c + (d - c) * tx) * ty;
+    };
+
+    for (const p of planes) {
+      const th = p.angle * Math.PI / 180, ux = Math.cos(th), uy = Math.sin(th), wx = -uy, wy = ux;
+      const cx = W / 2, cy = H / 2, reach = Math.ceil(Math.hypot(W, H) / 2 / cell) + 1;
+      const path = new Path2D();
+      for (let i = -reach; i <= reach; i++) {
+        for (let j = -reach; j <= reach; j++) {
+          const x = cx + (i * ux + j * wx) * cell, y = cy + (i * uy + j * wy) * cell;
+          if (x < -cell || y < -cell || x > W + cell || y > H + cell) continue;
+          const v = Math.min(1, sample(p.data, x, y) * s.gain);
+          if (v < 0.004) continue;
+          addDot(path, s.shape, x, y, v, cell, ux, uy, wx, wy, th);
+        }
+      }
+      ctx.fillStyle = p.color;
+      ctx.fill(path);
+    }
+    ctx.restore();
+  }
+
+  function poly(path, x, y, pts, ux, uy, wx, wy) {
+    pts.forEach(([a, b], i) => {
+      const X = x + a * ux + b * wx, Y = y + a * uy + b * wy;
+      i ? path.lineTo(X, Y) : path.moveTo(X, Y);
+    });
+    path.closePath();
+  }
+
+  // Dot sizes are chosen so ink coverage tracks tone value v (0..1).
+  function addDot(path, shape, x, y, v, cell, ux, uy, wx, wy, th) {
+    switch (shape) {
+      case "round": {
+        const r = cell * 0.7071 * Math.sqrt(v);
+        path.moveTo(x + r, y); path.arc(x, y, r, 0, Math.PI * 2); break;
+      }
+      case "ellipse": {
+        const r = cell * 0.7071 * Math.sqrt(v), rx = r * 1.3, ry = r * 0.77;
+        path.moveTo(x + rx * ux, y + rx * uy); path.ellipse(x, y, rx, ry, th, 0, Math.PI * 2); break;
+      }
+      case "square": {
+        const h = cell / 2 * Math.sqrt(v) * 1.02;
+        poly(path, x, y, [[-h, -h], [h, -h], [h, h], [-h, h]], ux, uy, wx, wy); break;
+      }
+      case "diamond": {
+        const d = cell * Math.sqrt(v / 2) * 1.02;
+        poly(path, x, y, [[0, -d], [d, 0], [0, d], [-d, 0]], ux, uy, wx, wy); break;
+      }
+      case "line": {
+        const t = v * cell / 2, l = cell / 2 + 0.4;
+        poly(path, x, y, [[-l, -t], [l, -t], [l, t], [-l, t]], ux, uy, wx, wy); break;
+      }
+      case "cross": {
+        const t = cell * (1 - Math.sqrt(1 - v)) / 2, l = cell / 2 + 0.4;
+        poly(path, x, y, [[-l, -t], [-t, -t], [-t, -l], [t, -l], [t, -t], [l, -t], [l, t], [t, t], [t, l], [-t, l], [-t, t], [-l, t]], ux, uy, wx, wy); break;
+      }
+    }
+  }
+
+  // ---------- Sample image (example job) ----------
+  function makeSample() {
+    const c = document.createElement("canvas"); c.width = 1500; c.height = 1000;
+    const g = c.getContext("2d");
+    const bg = g.createLinearGradient(0, 0, 0, 1000);
+    bg.addColorStop(0, "#7fc6e8"); bg.addColorStop(0.55, "#f7d9a8"); bg.addColorStop(1, "#e9876b");
+    g.fillStyle = bg; g.fillRect(0, 0, 1500, 1000);
+    const sun = g.createRadialGradient(1080, 300, 10, 1080, 300, 190);
+    sun.addColorStop(0, "#fff7c2"); sun.addColorStop(1, "rgba(255,200,80,0)");
+    g.fillStyle = sun; g.beginPath(); g.arc(1080, 300, 190, 0, Math.PI * 2); g.fill();
+    const ball = (x, y, r, light, dark) => {
+      const gr = g.createRadialGradient(x - r * 0.4, y - r * 0.45, r * 0.08, x, y, r);
+      gr.addColorStop(0, light); gr.addColorStop(1, dark);
+      g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+    };
+    g.fillStyle = "#3b2a3f"; g.fillRect(0, 700, 1500, 300);
+    ball(380, 560, 230, "#ffd1e6", "#b0005c");
+    ball(760, 620, 170, "#d6f4ff", "#00639a");
+    ball(1110, 660, 130, "#fff4b0", "#c79400");
+    // Tone control strip, 0-100% in 10% steps, like the one on a press sheet.
+    for (let i = 0; i <= 10; i++) {
+      const v = 255 - Math.round(i * 25.5);
+      g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(40 + i * 128, 900, 128, 70);
+    }
+    g.fillStyle = "#ffffff"; g.font = "600 34px system-ui, sans-serif"; g.fillText("Sample image", 40, 70);
+    return c;
+  }
+
+  // ---------- Queue and UI ----------
+  const jobs = [];
+  let current = null, seq = 0;
+
+  function addJob(name, bitmap, example) {
+    const job = { id: ++seq, name, bitmap, example: !!example, done: false, thumb: "" };
+    const t = document.createElement("canvas"); const ts = 88 / Math.max(bitmap.width, bitmap.height);
+    t.width = Math.max(1, Math.round(bitmap.width * ts)); t.height = Math.max(1, Math.round(bitmap.height * ts));
+    t.getContext("2d").drawImage(bitmap, 0, 0, t.width, t.height);
+    job.thumb = t.toDataURL("image/jpeg", 0.8);
+    jobs.push(job);
+    return job;
+  }
+
+  function renderQueue() {
+    const ul = $("queue"); ul.textContent = "";
+    for (const job of jobs) {
+      const li = document.createElement("li");
+      li.setAttribute("aria-current", job === current ? "true" : "false");
+      li.tabIndex = 0;
+      const [ow, oh] = outputSize(job.bitmap.width, job.bitmap.height, settings().maxSide);
+      li.innerHTML = `<img alt=""><div class="name"><b></b><span>${job.bitmap.width}×${job.bitmap.height} → ${ow}×${oh}</span></div><div class="acts"></div>`;
+      li.querySelector("img").src = job.thumb;
+      li.querySelector("b").textContent = job.name;
+      const acts = li.querySelector(".acts");
+      const pill = document.createElement("span");
+      pill.className = "pill" + (job.example ? " example" : job.done ? " done" : "");
+      pill.textContent = job.example ? "Example" : job.done ? "Saved" : "Ready";
+      acts.append(pill);
+      const save = document.createElement("button");
+      save.type = "button"; save.className = "btn small"; save.textContent = "Save";
+      save.addEventListener("click", (e) => { e.stopPropagation(); saveJob(job); });
+      acts.append(save);
+      if (!job.example || jobs.length > 1) {
+        const rm = document.createElement("button");
+        rm.type = "button"; rm.className = "btn small"; rm.textContent = "Remove"; rm.setAttribute("aria-label", "Remove " + job.name);
+        rm.addEventListener("click", (e) => { e.stopPropagation(); removeJob(job); });
+        acts.append(rm);
+      }
+      const pick = () => { current = job; renderQueue(); schedulePreview(); };
+      li.addEventListener("click", pick);
+      li.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
+      ul.append(li);
+    }
+    $("save-all").disabled = !jobs.some((j) => !j.example);
+  }
+
+  function removeJob(job) {
+    const i = jobs.indexOf(job); if (i < 0) return;
+    jobs.splice(i, 1);
+    if (current === job) current = jobs[0] || null;
+    renderQueue(); schedulePreview();
+  }
+
+  // Preview renders at reduced size with the dot cell scaled to match the saved file.
+  let previewTimer = 0, showOriginal = false, actual = false;
+  function schedulePreview() { clearTimeout(previewTimer); previewTimer = setTimeout(drawPreview, 90); }
+  function drawPreview() {
+    const view = $("view");
+    if (!current) { view.width = view.height = 10; return; }
+    const s = settings();
+    const [ow, oh] = outputSize(current.bitmap.width, current.bitmap.height, s.maxSide);
+    const limit = actual ? Math.max(ow, oh) : 1600;
+    const ps = Math.min(1, limit / Math.max(ow, oh));
+    const pw = Math.round(ow * ps), ph = Math.round(oh * ps);
+    view.width = pw; view.height = ph;
+    const ctx = view.getContext("2d");
+    const t0 = performance.now();
+    if (showOriginal) ctx.drawImage(current.bitmap, 0, 0, pw, ph);
+    else renderHalftone(ctx, current.bitmap, pw, ph, s, ps);
+    $("badge").textContent = showOriginal ? "Original" : (current.example ? "Halftone proof · example" : "Halftone proof");
+    $("status").textContent = `${ow}×${oh} px · ${Math.round(performance.now() - t0)} ms`;
+  }
+
+  function updateReadouts() {
+    const s = settings();
+    $("cell-out").textContent = s.cell + " px";
+    $("lpi-hint").textContent = `At 300 ppi this prints as a ${Math.round(300 / s.cell)} lpi screen.`;
+    $("gain-out").textContent = Math.round(s.gain * 100) + "%";
+    $("contrast-out").textContent = (s.contrast > 0 ? "+" : "") + Math.round(s.contrast * 100);
+    $("gcr-out").textContent = Math.round(s.gcr * 100) + "%";
+    $("ang-mono-out").textContent = s.monoAngle + "°";
+    const mono = s.mode === "mono";
+    $("mono-group").hidden = !mono; $("angles-group").hidden = mono;
+  }
+
+  $("controls").addEventListener("input", () => { updateReadouts(); schedulePreview(); });
+  $("controls").addEventListener("change", () => { updateReadouts(); renderQueue(); schedulePreview(); });
+  $("controls").addEventListener("submit", (e) => e.preventDefault());
+  document.querySelectorAll("[data-preset]").forEach((b) => b.addEventListener("click", () => {
+    const a = b.dataset.preset === "photoshop" ? [108, 162, 90, 45] : [15, 75, 0, 45];
+    ["c", "m", "y", "k"].forEach((ch, i) => { $("ang-" + ch).value = a[i]; });
+    schedulePreview();
+  }));
+
+  $("compare").addEventListener("click", (e) => {
+    showOriginal = !showOriginal; e.currentTarget.setAttribute("aria-pressed", showOriginal);
+    e.currentTarget.textContent = showOriginal ? "Show halftone" : "Show original"; drawPreview();
+  });
+  $("zoom").addEventListener("click", (e) => {
+    actual = !actual; e.currentTarget.setAttribute("aria-pressed", actual);
+    e.currentTarget.textContent = actual ? "Fit to window" : "Actual size";
+    $("stage").classList.toggle("actual", actual); drawPreview();
+  });
+
+  // ---------- Loading files ----------
+  async function loadFiles(list) {
+    const files = [...list].filter((f) => /^image\/(jpeg|png|webp)$/.test(f.type) || /\.(jpe?g|png|webp)$/i.test(f.name));
+    if (!files.length) { toast("Choose JPEG images (.jpg or .jpeg). PNG and WebP also work."); return; }
+    const sample = jobs.find((j) => j.example);
+    let first = null;
+    for (const f of files) {
+      try {
+        const bmp = await createImageBitmap(f);
+        const job = addJob(f.name, bmp, false);
+        first = first || job;
+      } catch { toast(`Couldn't read ${f.name}. It may be damaged or not an image.`); }
+    }
+    if (first) {
+      if (sample) jobs.splice(jobs.indexOf(sample), 1);
+      current = first; renderQueue(); schedulePreview();
+      toast(files.length === 1 ? "Image added" : `${files.length} images added`);
+    }
+  }
+  $("file").addEventListener("change", (e) => { loadFiles(e.target.files); e.target.value = ""; });
+  const stage = $("stage");
+  ["dragenter", "dragover"].forEach((ev) => document.addEventListener(ev, (e) => { e.preventDefault(); stage.classList.add("drag"); }));
+  ["dragleave", "drop"].forEach((ev) => document.addEventListener(ev, (e) => { e.preventDefault(); if (ev === "drop" || e.target === document.documentElement) stage.classList.remove("drag"); }));
+  document.addEventListener("drop", (e) => { if (e.dataTransfer?.files?.length) loadFiles(e.dataTransfer.files); });
+
+  // ---------- Saving (native dialogs via preload.js) ----------
+  const desktop = window.desktop;
+
+  async function renderFull(job) {
+    const s = settings();
+    const [ow, oh] = outputSize(job.bitmap.width, job.bitmap.height, s.maxSide);
+    const c = document.createElement("canvas"); c.width = ow; c.height = oh;
+    renderHalftone(c.getContext("2d"), job.bitmap, ow, oh, s, 1);
+    const type = s.format === "jpeg" ? "image/jpeg" : "image/png";
+    const blob = await new Promise((res) => c.toBlob(res, type, 0.92));
+    const base = job.name.replace(/\.[^.]+$/, "") || "image";
+    return { blob, filename: `${base}-halftone.${s.format === "jpeg" ? "jpg" : "png"}` };
+  }
+
+  async function renderBytes(job) {
+    $("status").textContent = `Rendering ${job.name} at full size…`;
+    await new Promise((r) => setTimeout(r, 30));
+    const { blob, filename } = await renderFull(job);
+    $("status").textContent = "";
+    if (!blob) { toast("The image was too large to render. Pick a smaller output size."); return null; }
+    return { bytes: new Uint8Array(await blob.arrayBuffer()), filename };
+  }
+
+  async function saveJob(job) {
+    const out = await renderBytes(job);
+    if (!out) return;
+    try {
+      const res = await desktop.saveFile(out.filename, out.bytes);
+      if (res.status !== "saved") { toast("Save cancelled"); return; }
+      if (!job.example) { job.done = true; renderQueue(); }
+      toast(`Saved ${res.path}`);
+    } catch (err) { toast(`Couldn't save the file: ${err.message || err}`); }
+  }
+
+  async function saveAll() {
+    const todo = jobs.filter((j) => !j.example);
+    if (!todo.length) return;
+    const folder = await desktop.pickFolder();
+    if (!folder) { toast("Save cancelled"); return; }
+    let saved = 0;
+    for (const job of todo) {
+      current = job; renderQueue(); drawPreview();
+      const out = await renderBytes(job);
+      if (!out) break;
+      try { await desktop.writeToFolder(folder, out.filename, out.bytes); job.done = true; saved++; }
+      catch (err) { toast(`Couldn't save ${out.filename}: ${err.message || err}`); break; }
+    }
+    renderQueue();
+    if (saved) toast(`Saved ${saved} image${saved === 1 ? "" : "s"} to ${folder}`);
+  }
+
+  $("save-one").addEventListener("click", () => current && saveJob(current));
+  $("save-all").addEventListener("click", saveAll);
+
+  let toastTimer = 0;
+  function toast(msg) {
+    const t = $("toast"); t.textContent = msg; t.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 3200);
+  }
+
+  // Start with an example job so the proof shows what the tool does.
+  current = addJob("sample-image.jpg", makeSample(), true);
+  updateReadouts(); renderQueue(); drawPreview();
+})();
+</script>
+</body>
+</html>

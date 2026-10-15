@@ -1,0 +1,19 @@
+{
+  "name": "halftone-press",
+  "productName": "Halftone Press",
+  "version": "1.0.0",
+  "description": "Turn JPEG photos into CMYK or single-ink halftone images.",
+  "main": "app/main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "package:win": "electron-packager . \"Halftone Press\" --platform=win32 --arch=x64 --out=dist --overwrite --asar --icon=build/icon.ico --app-copyright=\"Halftone Press\" --win32metadata.FileDescription=\"Halftone Press\" --win32metadata.ProductName=\"Halftone Press\" --ignore=^/dist --ignore=^/build --ignore=^/node_modules"
+  },
+  "devDependencies": {
+    "@electron/packager": "20.3.0",
+    "@fontsource-variable/bricolage-grotesque": "5.3.0",
+    "@fontsource/ibm-plex-mono": "5.3.0",
+    "@fontsource/ibm-plex-sans": "5.3.0",
+    "electron": "33.4.11"
+  }
+}
